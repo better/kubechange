@@ -1,0 +1,9 @@
+---
+version: 1
+reviewers:
+  imsky:
+    slack: "Ivan Malopinsky"
+  alikhan-io:
+    slack: "Ali Khan"
+  liambuchanan:
+    slack: "Liam Buchanan"
