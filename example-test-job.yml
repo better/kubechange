@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    kronjob/job: example-test
+  name: example-test
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        kronjob/job: example-test
+    spec:
+      containers:
+      - image: scratch
+        name: job
+      restartPolicy: Never

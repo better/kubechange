@@ -1,0 +1,4 @@
+name: "example"
+schedule: "once"
+image: "scratch"
+namespace: "default"

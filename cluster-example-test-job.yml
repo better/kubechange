@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  creationTimestamp: 2018-02-22T17:54:41Z
+  labels:
+    kronjob/job: example-test
+  name: example-test
+  namespace: default
+  resourceVersion: "72205742"
+  selfLink: /apis/batch/v1/namespaces/default/jobs/example-test
+  uid: 75298478-17f9-11e8-867a-0ab4c13d9200
+spec:
+  completions: 1
+  parallelism: 1
+  selector:
+    matchLabels:
+      controller-uid: 75298478-17f9-11e8-867a-0ab4c13d9200
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        controller-uid: 75298478-17f9-11e8-867a-0ab4c13d9200
+        job-name: example-test
+        kronjob/job: example-test
+    spec:
+      containers:
+      - image: scratch
+        imagePullPolicy: Always
+        name: job
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  active: 1
+  startTime: 2018-02-22T17:54:41Z
