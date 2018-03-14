@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apilabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1 "k8s.io/client-go/pkg/api/v1"
@@ -22,8 +21,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-//todo: compare clean JobSpecs, detect difference
-// --
 //todo: generate plan to deal with difference: create, update, delete
 //todo: perform plan, confirm plan has succeeded
 // --
@@ -33,29 +30,6 @@ import (
 //todo: get field names from json tags
 //todo: consider comparing json (or deserialized json) instead of direct fields
 //todo: consider implementing visitor pattern similar to kubectl for comparisons
-
-func isAcceptedGroupVersionKind(gvk schema.GroupVersionKind) bool {
-	acceptedGroupVersionKinds := []schema.GroupVersionKind{
-		{
-			Group:   "batch",
-			Version: "v1",
-			Kind:    "Job",
-		},
-		{
-			Group:   "batch",
-			Version: "v2alpha1",
-			Kind:    "CronJob",
-		},
-	}
-
-	for _, k := range acceptedGroupVersionKinds {
-		if gvk.Group == k.Group && gvk.Version == k.Version && gvk.Kind == k.Kind {
-			return true
-		}
-	}
-
-	return false
-}
 
 func readFiles(args []string) []string {
 	var files = make([]string, 0, 1)
@@ -97,11 +71,23 @@ func parseManifests(file string) ([]runtime.Object, error) {
 	return objects, nil
 }
 
+func getObjectType(object runtime.Object) string {
+	switch t := object.(type) {
+	case *batchv1.Job:
+		return "batchv1/Job"
+	case *batchv2alpha1.CronJob:
+		return "batchv2alpha1/CronJob"
+	default:
+		_ = t
+		return "unknown"
+	}
+}
+
 func validateObjects(objects []runtime.Object) error {
 	for _, o := range objects {
-		gvk := o.GetObjectKind().GroupVersionKind()
-		if !isAcceptedGroupVersionKind(gvk) {
-			return errors.New("Not an accepted resource: " + gvk.String())
+		t := getObjectType(o)
+		if t == "unknown" {
+			return errors.New("Not an accepted resource")
 		}
 	}
 	return nil
@@ -170,7 +156,9 @@ func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Obj
 func deepCompareObject(src runtime.Object, dst runtime.Object) []string {
 	var fields []string
 
-	//todo: bail if src/dst types are different
+	if src == nil || dst == nil || getObjectType(src) != getObjectType(dst) {
+		return []string{"kind"}
+	}
 
 	switch srcType := src.(type) {
 	case *batchv1.Job:
@@ -416,6 +404,12 @@ func main() {
 		jobs, _ := clientset.BatchV1().Jobs(ns).List(metav1.ListOptions{})
 		for _, job := range jobs.Items {
 			o := runtime.Object(&job)
+			remoteObjects = append(remoteObjects, o)
+		}
+
+		cronjobs, _ := clientset.BatchV2alpha1().CronJobs(ns).List(metav1.ListOptions{})
+		for _, cronjob := range cronjobs.Items {
+			o := runtime.Object(&cronjob)
 			remoteObjects = append(remoteObjects, o)
 		}
 	}
