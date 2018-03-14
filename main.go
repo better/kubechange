@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-//todo: generate plan to deal with difference: create, update, delete
 //todo: perform plan, confirm plan has succeeded
 // --
 //todo: convert panic() calls to log errors in a structured way
@@ -131,6 +130,11 @@ type ObjectPair struct {
 	dst *runtime.Object
 }
 
+type Step struct {
+	pair   ObjectPair
+	action string
+}
+
 func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Object, criteria PairCriteria) []ObjectPair {
 	pairs := make([]ObjectPair, 0, len(srcObjects))
 
@@ -149,6 +153,8 @@ func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Obj
 			}
 		}
 	}
+
+	//todo: iterate over dstObjects
 
 	return pairs
 }
@@ -416,10 +422,25 @@ func main() {
 
 	dstObjects := filterObjectsByLabel(remoteObjects, *label)
 	pairs := pairObjectsByCriteria(srcObjects, dstObjects, PairCriteria{*label})
+	plan := make([]Step, 0, 1)
 
 	for _, pair := range pairs {
-		if pair.src != nil && pair.dst != nil {
-			fmt.Println(deepCompareObject(*pair.src, *pair.dst))
+		pairDiffFields := deepCompareObject(*pair.src, *pair.dst)
+
+		if len(pairDiffFields) > 0 {
+			var action string
+
+			if pair.dst == nil {
+				action = "create"
+			} else if pair.dst != nil {
+				action = "update"
+			} else if pair.src == nil {
+				action = "create"
+			}
+
+			plan = append(plan, Step{pair: pair, action: action})
 		}
 	}
+
+	fmt.Println(plan)
 }
