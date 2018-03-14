@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -22,8 +21,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-//todo: perform plan, confirm plan has succeeded
-// --
 //todo: convert panic() calls to log errors in a structured way
 //todo: should fail if more than one resource is matched on selector (for some resources?)
 //todo: should also fail if the source resources don't match selector
@@ -150,9 +147,10 @@ func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Obj
 				srcLabels.Get(criteria.label) == dstLabels.Get(criteria.label) &&
 				srcMetadata.GetNamespace() == dstMetadata.GetNamespace() {
 				pair.dst = &dst
-				pairs = append(pairs, pair)
 			}
 		}
+
+		pairs = append(pairs, pair)
 	}
 
 	//todo: iterate over dstObjects
@@ -432,29 +430,113 @@ func main() {
 	plan := make([]Step, 0, 1)
 
 	for _, pair := range pairs {
-		pairDiffFields := deepCompareObject(*pair.src, *pair.dst)
+		var action string
 
-		if len(pairDiffFields) > 0 {
-			var action string
-
-			if pair.dst == nil {
-				action = "create"
-			} else if pair.dst != nil {
+		if pair.dst == nil {
+			action = "create"
+		} else if pair.src == nil {
+			action = "delete"
+		} else if pair.dst != nil {
+			pairDiffFields := deepCompareObject(*pair.src, *pair.dst)
+			if len(pairDiffFields) > 0 {
 				action = "update"
-			} else if pair.src == nil {
-				action = "create"
 			}
+		}
 
+		if action != "" {
 			plan = append(plan, Step{pair: pair, action: action})
 		}
 	}
 
 	for _, step := range plan {
 		if step.action == "create" {
-			fmt.Println("creating")
+			src := *step.pair.src
+			srcMetadata, _ := getObjectMetadata(src)
+			switch srcType := src.(type) {
+			case *batchv2alpha1.CronJob:
+				_, err := clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Create(src.(*batchv2alpha1.CronJob))
+
+				if err != nil {
+					panic(err)
+				}
+
+			case *batchv1.Job:
+				_, err := clientset.BatchV1().Jobs(srcMetadata.GetNamespace()).Create(src.(*batchv1.Job))
+
+				if err != nil {
+					panic(err)
+				}
+			default:
+				_ = srcType
+			}
 		} else if step.action == "update" {
-			fmt.Println("updating")
+			src := *step.pair.src
+			dst := *step.pair.dst
+			srcMetadata, _ := getObjectMetadata(src)
+			dstMetadata, _ := getObjectMetadata(dst)
+			//todo: use object metadata instead of type switch
+			switch srcType := src.(type) {
+			case *batchv1.Job:
+				dstType := getObjectType(dst)
+
+				if dstType == "batchv1/Job" {
+					//todo: set propagation policy?
+					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(srcMetadata.GetName(), nil)
+
+					if err != nil {
+						panic(err)
+					}
+
+					//todo: wait until deleted
+					//todo: wait/retry if object is being deleted
+					_, err = clientset.BatchV1().Jobs(srcMetadata.GetNamespace()).Create(src.(*batchv1.Job))
+
+					if err != nil {
+						panic(err)
+					}
+				} else if dstType == "batchv2alpha1/CronJob" {
+					//todo: set propagation policy?
+					err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
+					if err != nil {
+						panic(err)
+					}
+
+					//todo: wait until deleted
+					//todo: wait/retry if object is being deleted
+					_, err = clientset.BatchV1().Jobs(srcMetadata.GetNamespace()).Create(src.(*batchv1.Job))
+
+					if err != nil {
+						panic(err)
+					}
+				}
+			case *batchv2alpha1.CronJob:
+				dstType := getObjectType(dst)
+
+				if dstType == "batchv1/Job" {
+					//todo: set propagation policy?
+					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(srcMetadata.GetName(), nil)
+
+					if err != nil {
+						panic(err)
+					}
+
+					//todo: wait until deleted
+					//todo: wait/retry if object is being deleted
+					_, err = clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Create(src.(*batchv2alpha1.CronJob))
+
+					if err != nil {
+						panic(err)
+					}
+				} else if dstType == "batchv2alpha1/CronJob" {
+					_, err = clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Update(src.(*batchv2alpha1.CronJob))
+
+					if err != nil {
+						panic(err)
+					}
+				}
+			default:
+				_ = srcType
+			}
 		}
 	}
-
 }
