@@ -101,8 +101,6 @@ func getObjectMetadata(o runtime.Object) (metav1.Object, apilabels.Set) {
 
 		return metadata, apilabels.Set(metadata.GetLabels())
 	}
-
-	return nil, nil
 }
 
 func filterObjectsByLabel(objects []runtime.Object, label string) []runtime.Object {
