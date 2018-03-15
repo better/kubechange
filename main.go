@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -303,7 +304,6 @@ func compareContainerArray(src []v1.Container, dst []v1.Container) bool {
 			if dstContainer.Name == srcContainer.Name {
 				foundMatchingContainer = true
 
-				//todo: compare env vars
 				if srcContainer.Image != dstContainer.Image {
 					return true
 				} else if srcContainer.WorkingDir != dstContainer.WorkingDir {
@@ -311,6 +311,13 @@ func compareContainerArray(src []v1.Container, dst []v1.Container) bool {
 				} else if strings.Join(srcContainer.Command, " ") != strings.Join(dstContainer.Command, " ") {
 					return true
 				} else if strings.Join(srcContainer.Args, " ") != strings.Join(dstContainer.Args, " ") {
+					return true
+				}
+
+				srcEnv, _ := json.Marshal(srcContainer.Env)
+				dstEnv, _ := json.Marshal(dstContainer.Env)
+
+				if string(srcEnv) != string(dstEnv) {
 					return true
 				}
 			}
@@ -442,5 +449,12 @@ func main() {
 		}
 	}
 
-	fmt.Println(plan)
+	for _, step := range plan {
+		if step.action == "create" {
+			fmt.Println("creating")
+		} else if step.action == "update" {
+			fmt.Println("updating")
+		}
+	}
+
 }
