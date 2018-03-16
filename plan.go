@@ -14,6 +14,7 @@ import (
 	batchv2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
 )
 
+//todo: filter out Jobs that are children of CronJobs
 func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Object, criteria PairCriteria) []ObjectPair {
 	pairs := make([]ObjectPair, 0, len(srcObjects))
 
@@ -195,6 +196,7 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset, execute bool) {
 			dst := *step.pair.dst
 			srcMetadata, _ := getObjectMetadata(src)
 			dstMetadata, _ := getObjectMetadata(dst)
+			propagationPolicy := metav1.DeletePropagationForeground
 			//todo: use object metadata instead of type switch
 			switch srcType := src.(type) {
 			case *batchv1.Job:
@@ -207,8 +209,7 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset, execute bool) {
 						break
 					}
 
-					//todo: set propagation policy?
-					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
+					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 
 					if err != nil {
 						panic(err)
@@ -227,9 +228,9 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset, execute bool) {
 					if !execute {
 						break
 					}
-					//todo: set propagation policy?
+
 					//todo: delete current CronJob child Jobs
-					err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
+					err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 					if err != nil {
 						panic(err)
 					}
@@ -251,8 +252,8 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset, execute bool) {
 					if !execute {
 						break
 					}
-					//todo: set propagation policy?
-					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
+
+					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 
 					if err != nil {
 						panic(err)
