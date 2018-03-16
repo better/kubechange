@@ -12,4 +12,4 @@ test:
 build: build-darwin build-linux
 
 build-%:
-	GOOS=$* GOARCH=amd64 go build -o ${NAME}-$*
+	GOOS=$* GOARCH=amd64 go build -o ${NAME}-$* main.go compare.go plan.go
