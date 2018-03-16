@@ -68,22 +68,22 @@ func parseManifests(file string) ([]runtime.Object, error) {
 	return objects, nil
 }
 
-func getObjectType(object runtime.Object) string {
+func getObjectGroupVersionKind(object runtime.Object) schema.GroupVersionKind {
 	switch t := object.(type) {
 	case *batchv1.Job:
-		return "batchv1/Job"
+		return schema.GroupVersionKind{"batch", "v1", "Job"}
 	case *batchv2alpha1.CronJob:
-		return "batchv2alpha1/CronJob"
+		return schema.GroupVersionKind{"batch", "v2alpha1", "CronJob"}
 	default:
 		_ = t
-		return "unknown"
+		return nil
 	}
 }
 
 func validateObjects(objects []runtime.Object) error {
 	for _, o := range objects {
-		t := getObjectType(o)
-		if t == "unknown" {
+		gvk := getObjectGroupVersionKind(o)
+		if gvk == nil {
 			return errors.New("Not an accepted resource")
 		}
 	}
@@ -158,8 +158,10 @@ func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Obj
 
 func deepCompareObject(src runtime.Object, dst runtime.Object) []string {
 	var fields []string
+	srcGVK := getObjectGroupVersionKind(src)
+	dstGVK := getObjectGroupVersionKind(dst)
 
-	if src == nil || dst == nil || getObjectType(src) != getObjectType(dst) {
+	if src == nil || dst == nil || srcGVK.String() != dstGVK.String() {
 		return []string{"kind"}
 	}
 
@@ -475,9 +477,9 @@ func main() {
 			//todo: use object metadata instead of type switch
 			switch srcType := src.(type) {
 			case *batchv1.Job:
-				dstType := getObjectType(dst)
+				dstGVK := getObjectGroupVersionKind(dst)
 
-				if dstType == "batchv1/Job" {
+				if dstGVK.Kind == "Job" {
 					//todo: set propagation policy?
 					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(srcMetadata.GetName(), nil)
 
@@ -492,7 +494,7 @@ func main() {
 					if err != nil {
 						panic(err)
 					}
-				} else if dstType == "batchv2alpha1/CronJob" {
+				} else if dstGVK.Kind == "CronJob" {
 					//todo: set propagation policy?
 					err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
 					if err != nil {
@@ -508,9 +510,9 @@ func main() {
 					}
 				}
 			case *batchv2alpha1.CronJob:
-				dstType := getObjectType(dst)
+				dstGVK := getObjectGroupVersionKind(dst)
 
-				if dstType == "batchv1/Job" {
+				if dstGVK.Kind == "Job" {
 					//todo: set propagation policy?
 					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(srcMetadata.GetName(), nil)
 
@@ -525,7 +527,7 @@ func main() {
 					if err != nil {
 						panic(err)
 					}
-				} else if dstType == "batchv2alpha1/CronJob" {
+				} else if dstGVK.Kind == "CronJob" {
 					_, err = clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Update(src.(*batchv2alpha1.CronJob))
 
 					if err != nil {
