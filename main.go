@@ -115,7 +115,8 @@ func getObjectMetadata(o runtime.Object) (metav1.Object, apilabels.Set) {
 }
 
 func main() {
-	label := flag.String("l", "", "Label to filter on")
+	label := flag.String("l", "", "Label to use as filter")
+	execute := flag.Bool("e", false, "Update cluster objects")
 
 	homedir := os.Getenv("HOME")
 
@@ -157,5 +158,10 @@ func main() {
 	}
 
 	plan := generatePlan(args, label, clientset)
+
 	fmt.Println(plan)
+
+	if *execute == true {
+		executePlan(plan, clientset)
+	}
 }
