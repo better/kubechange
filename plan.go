@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -71,7 +72,7 @@ func getObjectNamespaces(objects []runtime.Object) []string {
 }
 
 func waitForObjectDeletion(object runtime.Object, clientset *kubernetes.Clientset) error {
-	return wait.PollImmediate(time.Millisecond*100, time.Second*60, func() (bool, error) {
+	return wait.PollImmediate(time.Second, time.Second*60, func() (bool, error) {
 		var err error
 		switch t := object.(type) {
 		case *batchv1.Job:
@@ -155,13 +156,19 @@ func generatePlan(filenames []string, label *string, clientset *kubernetes.Clien
 	return plan
 }
 
-func executePlan(plan []Step, clientset *kubernetes.Clientset) {
+func executePlan(plan []Step, clientset *kubernetes.Clientset, execute bool) {
 	for _, step := range plan {
 		if step.action == "create" {
 			src := *step.pair.src
 			srcMetadata, _ := getObjectMetadata(src)
 			switch srcType := src.(type) {
 			case *batchv2alpha1.CronJob:
+				fmt.Println(`Creating CronJob "` + srcMetadata.GetName() + `"`)
+
+				if !execute {
+					break
+				}
+
 				_, err := clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Create(src.(*batchv2alpha1.CronJob))
 
 				if err != nil {
@@ -169,6 +176,12 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset) {
 				}
 
 			case *batchv1.Job:
+				fmt.Println(`Creating Job "` + srcMetadata.GetName() + `"`)
+
+				if !execute {
+					break
+				}
+
 				_, err := clientset.BatchV1().Jobs(srcMetadata.GetNamespace()).Create(src.(*batchv1.Job))
 
 				if err != nil {
@@ -188,6 +201,12 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset) {
 				dstGVK := getObjectGroupVersionKind(dst)
 
 				if dstGVK.Kind == "Job" {
+					fmt.Println(`Replacing Job "` + dstMetadata.GetName() + `" with Job "` + srcMetadata.GetName() + `"`)
+
+					if !execute {
+						break
+					}
+
 					//todo: set propagation policy?
 					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
 
@@ -203,6 +222,11 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset) {
 						panic(err)
 					}
 				} else if dstGVK.Kind == "CronJob" {
+					fmt.Println(`Replacing CronJob "` + dstMetadata.GetName() + `" with Job "` + srcMetadata.GetName() + `"`)
+
+					if !execute {
+						break
+					}
 					//todo: set propagation policy?
 					//todo: delete current CronJob child Jobs
 					err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
@@ -222,6 +246,11 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset) {
 				dstGVK := getObjectGroupVersionKind(dst)
 
 				if dstGVK.Kind == "Job" {
+					fmt.Println(`Replacing Job "` + dstMetadata.GetName() + `" with CronJob "` + srcMetadata.GetName() + `"`)
+
+					if !execute {
+						break
+					}
 					//todo: set propagation policy?
 					err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), nil)
 
@@ -237,6 +266,11 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset) {
 						panic(err)
 					}
 				} else if dstGVK.Kind == "CronJob" {
+					fmt.Println(`Replacing CronJob "` + dstMetadata.GetName() + `" with CronJob "` + srcMetadata.GetName() + `"`)
+
+					if !execute {
+						break
+					}
 					_, err := clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Update(src.(*batchv2alpha1.CronJob))
 
 					if err != nil {
@@ -247,5 +281,11 @@ func executePlan(plan []Step, clientset *kubernetes.Clientset) {
 				_ = srcType
 			}
 		}
+	}
+
+	if len(plan) == 0 {
+		fmt.Println("Nothing to do")
+	} else {
+		fmt.Println("Finished")
 	}
 }

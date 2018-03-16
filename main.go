@@ -134,9 +134,9 @@ func main() {
 
 	flag.Parse()
 
-	args := flag.Args()
+	filenames := flag.Args()
 
-	if len(args) == 0 {
+	if len(filenames) == 0 {
 		flag.Usage()
 		return
 	}
@@ -157,11 +157,11 @@ func main() {
 		panic(err.Error())
 	}
 
-	plan := generatePlan(args, label, clientset)
+	plan := generatePlan(filenames, label, clientset)
 
-	fmt.Println(plan)
-
-	if *execute == true {
-		executePlan(plan, clientset)
+	if *execute != true {
+		fmt.Printf("This is a preview. Run kubechange with -e to make cluster updates.\n\n")
 	}
+
+	executePlan(plan, clientset, *execute)
 }
