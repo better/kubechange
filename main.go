@@ -39,6 +39,12 @@ type Step struct {
 	action string
 }
 
+//need to move clientset to a struct because clientset type checks fail when using fake clientset as argument
+type PlanConfig struct {
+	kubeclient kubernetes.Interface
+	execute bool
+}
+
 func readFiles(args []string) []string {
 	var files = make([]string, 0, 1)
 
@@ -157,11 +163,52 @@ func main() {
 		panic(err.Error())
 	}
 
-	plan := generatePlan(filenames, label, clientset)
+	files := readFiles(filenames)
+	localObjects := make([]runtime.Object, 0, 1)
+
+	for _, file := range files {
+		o, err := parseManifests(file)
+		if err != nil {
+			panic(err)
+		}
+		localObjects = append(localObjects, o...)
+	}
+
+	err = validateObjects(localObjects)
+
+	if err != nil {
+		panic(err)
+	}
+
+	srcObjects := filterObjectsByLabel(localObjects, *label)
+	//todo: consider all namespaces
+	namespaces := getObjectNamespaces(srcObjects)
+
+	remoteObjects := make([]runtime.Object, 0, 1)
+
+	for _, ns := range namespaces {
+		jobs, _ := clientset.BatchV1().Jobs(ns).List(metav1.ListOptions{})
+		for _, job := range jobs.Items {
+			o := runtime.Object(&job)
+			remoteObjects = append(remoteObjects, o)
+		}
+
+		cronjobs, _ := clientset.BatchV2alpha1().CronJobs(ns).List(metav1.ListOptions{})
+		for _, cronjob := range cronjobs.Items {
+			o := runtime.Object(&cronjob)
+			remoteObjects = append(remoteObjects, o)
+		}
+	}
+
+	dstObjects := filterObjectsByLabel(remoteObjects, *label)
+
+	pairs := pairObjectsByCriteria(srcObjects, dstObjects, PairCriteria{*label})
+
+	plan := generatePlan(pairs)
 
 	if *execute != true {
 		fmt.Printf("This is a preview. Run kubechange with -e to make cluster updates.\n\n")
 	}
 
-	executePlan(plan, clientset, *execute)
+	executePlan(plan, PlanConfig{clientset, *execute})
 }

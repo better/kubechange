@@ -72,7 +72,7 @@ func getObjectNamespaces(objects []runtime.Object) []string {
 	return namespaces
 }
 
-func waitForObjectDeletion(object runtime.Object, clientset *kubernetes.Clientset) error {
+func waitForObjectDeletion(object runtime.Object, clientset kubernetes.Interface) error {
 	return wait.PollImmediate(time.Second, time.Second*60, func() (bool, error) {
 		var err error
 		switch t := object.(type) {
@@ -94,45 +94,7 @@ func waitForObjectDeletion(object runtime.Object, clientset *kubernetes.Clientse
 	})
 }
 
-func generatePlan(filenames []string, label *string, clientset *kubernetes.Clientset) []Step {
-	files := readFiles(filenames)
-	objects := make([]runtime.Object, 0, 1)
-
-	for _, file := range files {
-		o, err := parseManifests(file)
-		if err != nil {
-			panic(err)
-		}
-		objects = append(objects, o...)
-	}
-
-	err := validateObjects(objects)
-
-	if err != nil {
-		panic(err)
-	}
-
-	srcObjects := filterObjectsByLabel(objects, *label)
-	srcNamespaces := getObjectNamespaces(srcObjects)
-
-	remoteObjects := make([]runtime.Object, 0, 1)
-
-	for _, ns := range srcNamespaces {
-		jobs, _ := clientset.BatchV1().Jobs(ns).List(metav1.ListOptions{})
-		for _, job := range jobs.Items {
-			o := runtime.Object(&job)
-			remoteObjects = append(remoteObjects, o)
-		}
-
-		cronjobs, _ := clientset.BatchV2alpha1().CronJobs(ns).List(metav1.ListOptions{})
-		for _, cronjob := range cronjobs.Items {
-			o := runtime.Object(&cronjob)
-			remoteObjects = append(remoteObjects, o)
-		}
-	}
-
-	dstObjects := filterObjectsByLabel(remoteObjects, *label)
-	pairs := pairObjectsByCriteria(srcObjects, dstObjects, PairCriteria{*label})
+func generatePlan(pairs []ObjectPair) []Step {
 	plan := make([]Step, 0, 1)
 
 	for _, pair := range pairs {
@@ -157,7 +119,11 @@ func generatePlan(filenames []string, label *string, clientset *kubernetes.Clien
 	return plan
 }
 
-func executePlan(plan []Step, clientset *kubernetes.Clientset, execute bool) {
+//todo: figure out how to test this with a mock clientset (kubernetes.Interface?)
+//use something like https://github.com/GoogleCloudPlatform/skaffold/blob/21116842e65c0c7ace293352fad2b1f4adb5c9b2/pkg/skaffold/kubernetes/client.go
+func executePlan(plan []Step, config PlanConfig) {
+	clientset := config.kubeclient
+	execute := config.execute
 	for _, step := range plan {
 		if step.action == "create" {
 			src := *step.pair.src

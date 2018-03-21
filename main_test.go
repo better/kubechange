@@ -1,11 +1,76 @@
 package main
 
 import (
-	"testing"
-	batchv2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
-	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	v1 "k8s.io/client-go/pkg/api/v1"
+	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
+	batchv2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
+	"testing"
+
+	fakeclientset "k8s.io/client-go/kubernetes/fake"
 )
+
+func getExampleCronJobs() (batchv2alpha1.CronJob, batchv2alpha1.CronJob) {
+	var fooSuccessfulJobsHistoryLimit int32 = 1
+	var fooSuspend bool = true
+	var fooActiveDeadlineSeconds int64 = 90
+	var barSuccessfulJobsHistoryLimit int32 = 2
+	var barFailedJobsHistoryLimit int32 = 3
+
+	cronJobFoo := batchv2alpha1.CronJob{
+		Spec: batchv2alpha1.CronJobSpec{
+			Schedule:                   "* * * * *",
+			Suspend:                    &fooSuspend,
+			SuccessfulJobsHistoryLimit: &fooSuccessfulJobsHistoryLimit,
+			JobTemplate: batchv2alpha1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					ActiveDeadlineSeconds: &fooActiveDeadlineSeconds,
+					Template: v1.PodTemplateSpec{
+						Spec: v1.PodSpec{
+							RestartPolicy: "Always",
+							Containers: []v1.Container{
+								{
+									Name:  "example",
+									Image: "scratch",
+								},
+							},
+							NodeSelector: map[string]string{
+								"group": "prod",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cronJobBar := batchv2alpha1.CronJob{
+		Spec: batchv2alpha1.CronJobSpec{
+			Schedule:                   "1 * * * *",
+			SuccessfulJobsHistoryLimit: &barSuccessfulJobsHistoryLimit,
+			FailedJobsHistoryLimit:     &barFailedJobsHistoryLimit,
+			JobTemplate: batchv2alpha1.JobTemplateSpec{
+				Spec: batchv1.JobSpec{
+					Template: v1.PodTemplateSpec{
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{
+								{
+									Name:  "example",
+									Image: "scratch2",
+								},
+							},
+							NodeSelector: map[string]string{
+								"group": "staging",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return cronJobFoo, cronJobBar
+}
 
 func TestParsing(t *testing.T) {
 	files := readFiles([]string{"example-test-job.yml"})
@@ -46,78 +111,23 @@ func TestCompare(t *testing.T) {
 		t.Errorf("Incorrect node selector comparison result")
 	}
 
-	var fooSuccessfulJobsHistoryLimit int32 = 1
-	var fooSuspend bool = true
-	var fooActiveDeadlineSeconds int64 = 90
-	var barSuccessfulJobsHistoryLimit int32 = 2
-	var barFailedJobsHistoryLimit int32 = 3
-	cronJobFoo := batchv2alpha1.CronJob{
-		Spec: batchv2alpha1.CronJobSpec{
-			Schedule: "* * * * *",
-			Suspend: &fooSuspend,
-			SuccessfulJobsHistoryLimit: &fooSuccessfulJobsHistoryLimit,
-			JobTemplate: batchv2alpha1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					ActiveDeadlineSeconds: &fooActiveDeadlineSeconds,
-					Template: v1.PodTemplateSpec{
-						Spec: v1.PodSpec{
-							RestartPolicy: "Always",
-							Containers: []v1.Container{
-								{
-									Name: "example",
-									Image: "scratch",
-								},
-							},
-							NodeSelector: map[string]string{
-								"group": "prod",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	cronJobBar := batchv2alpha1.CronJob{
-		Spec: batchv2alpha1.CronJobSpec{
-			Schedule: "1 * * * *",
-			SuccessfulJobsHistoryLimit: &barSuccessfulJobsHistoryLimit,
-			FailedJobsHistoryLimit: &barFailedJobsHistoryLimit,
-			JobTemplate: batchv2alpha1.JobTemplateSpec{
-				Spec: batchv1.JobSpec{
-					Template: v1.PodTemplateSpec{
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{
-								{
-									Name: "example",
-									Image: "scratch2",
-								},
-							},
-							NodeSelector: map[string]string{
-								"group": "staging",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	cronJobFoo, cronJobBar := getExampleCronJobs()
 
 	{
-		fields := deepCompareCronJobSpec(cronJobFoo.Spec, cronJobBar.Spec)
+		fields := deepCompareObject(runtime.Object(&cronJobFoo), runtime.Object(&cronJobBar))
 
 		if len(fields) == 0 {
 			t.Errorf("Failed to correctly compare fields between CronJobs")
 		} else {
-			expectedFields := map[string]bool {
-				"activeDeadlineSeconds": false,
-				"schedule": false,
+			expectedFields := map[string]bool{
+				"activeDeadlineSeconds":      false,
+				"schedule":                   false,
 				"successfulJobsHistoryLimit": false,
-				"failedJobsHistoryLimit": false,
-				"suspend": false,
-				"nodeSelector": false,
-				"restartPolicy": false,
-				"containers": false,
+				"failedJobsHistoryLimit":     false,
+				"suspend":                    false,
+				"nodeSelector":               false,
+				"restartPolicy":              false,
+				"containers":                 false,
 			}
 
 			for _, field := range fields {
@@ -144,7 +154,7 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-func TestPlan(t *testing.T) {
+func TestPrePlan(t *testing.T) {
 	files := readFiles([]string{"example-test-job.yml"})
 	for _, file := range files {
 		objects, _ := parseManifests(file)
@@ -174,4 +184,43 @@ func TestPlan(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestPlan(t *testing.T) {
+	clientset := fakeclientset.NewSimpleClientset()
+
+	cronJobFoo, cronJobBar := getExampleCronJobs()
+	foo := runtime.Object(&cronJobFoo)
+	bar := runtime.Object(&cronJobBar)
+
+	{
+		pair := ObjectPair{&foo, &bar}
+		plan := generatePlan([]ObjectPair{pair})
+
+		if len(plan) != 1 {
+			t.Errorf("Invalid plan generated")
+		}
+
+		if plan[0].action != "update" {
+			t.Errorf("Incorrect plan action, expected update")
+		}
+
+		executePlan(plan, PlanConfig{clientset, false})
+	}
+
+	{
+		pair := ObjectPair{&foo, nil}
+		plan := generatePlan([]ObjectPair{pair})
+
+		if len(plan) != 1 {
+			t.Errorf("Invalid plan generated")
+		}
+
+		if plan[0].action != "create" {
+			t.Errorf("Incorrect plan action, expected create")
+		}
+
+		executePlan(plan, PlanConfig{clientset, false})
+	}
+
 }
