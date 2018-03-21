@@ -43,25 +43,31 @@ func deepCompareCronJobSpec(src batchv2alpha1.CronJobSpec, dst batchv2alpha1.Cro
 	}
 
 	if src.ConcurrencyPolicy != dst.ConcurrencyPolicy {
-		fields = append(fields, "schedule")
+		fields = append(fields, "concurrencyPolicy")
 	}
 
 	if src.Suspend != nil {
 		if dst.Suspend == nil || *src.Suspend != *dst.Suspend {
 			fields = append(fields, "suspend")
 		}
+	} else if dst.Suspend != nil {
+		fields = append(fields, "suspend")
 	}
 
 	if src.SuccessfulJobsHistoryLimit != nil {
 		if dst.SuccessfulJobsHistoryLimit == nil || *src.SuccessfulJobsHistoryLimit != *dst.SuccessfulJobsHistoryLimit {
 			fields = append(fields, "successfulJobsHistoryLimit")
 		}
+	} else if dst.SuccessfulJobsHistoryLimit != nil {
+		fields = append(fields, "successfulJobsHistoryLimit")
 	}
 
 	if src.FailedJobsHistoryLimit != nil {
 		if dst.FailedJobsHistoryLimit == nil || *src.FailedJobsHistoryLimit != *dst.FailedJobsHistoryLimit {
 			fields = append(fields, "failedJobsHistoryLimit")
 		}
+	} else if dst.FailedJobsHistoryLimit != nil {
+		fields = append(fields, "failedJobsHistoryLimit")
 	}
 
 	fields = append(fields, deepCompareJobTemplateSpec(src.JobTemplate, dst.JobTemplate)...)
