@@ -7,7 +7,7 @@ quality:
 	go tool vet *.go
 
 test:
-	go test
+	go test -coverprofile=coverage
 
 build: build-darwin build-linux
 
