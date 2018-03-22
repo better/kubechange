@@ -40,20 +40,6 @@ func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Obj
 	return pairs
 }
 
-func filterObjectsByLabel(objects []runtime.Object, label string) []runtime.Object {
-	filteredObjects := make([]runtime.Object, 0, 1)
-
-	for _, o := range objects {
-		_, labels := getObjectMetadata(o)
-		if labels.Has(label) {
-			filteredObjects = append(filteredObjects, o)
-			continue
-		}
-	}
-
-	return filteredObjects
-}
-
 func getObjectNamespaces(objects []runtime.Object) []string {
 	foundNamespaces := make(map[string]bool)
 

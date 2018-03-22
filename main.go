@@ -42,7 +42,7 @@ type Step struct {
 //need to move clientset to a struct because clientset type checks fail when using fake clientset as argument
 type PlanConfig struct {
 	kubeclient kubernetes.Interface
-	execute bool
+	execute    bool
 }
 
 func readFiles(args []string) []string {
@@ -108,16 +108,26 @@ func validateObjects(objects []runtime.Object) error {
 }
 
 func getObjectMetadata(o runtime.Object) (metav1.Object, apilabels.Set) {
-	switch t := o.(type) {
-	default:
-		metadata, err := meta.Accessor(t)
+	metadata, err := meta.Accessor(o)
 
-		if err != nil {
-			panic(err)
-		}
-
-		return metadata, apilabels.Set(metadata.GetLabels())
+	if err != nil {
+		panic(err)
 	}
+
+	return metadata, apilabels.Set(metadata.GetLabels())
+}
+
+func filterObjectsByLabel(objects []runtime.Object, label string) []runtime.Object {
+	filteredObjects := make([]runtime.Object, 0, 1)
+	for _, o := range objects {
+		_, labels := getObjectMetadata(o)
+		if labels.Has(label) {
+			filteredObjects = append(filteredObjects, o)
+			continue
+		}
+	}
+
+	return filteredObjects
 }
 
 func main() {
@@ -188,15 +198,13 @@ func main() {
 
 	for _, ns := range namespaces {
 		jobs, _ := clientset.BatchV1().Jobs(ns).List(metav1.ListOptions{})
-		for _, job := range jobs.Items {
-			o := runtime.Object(&job)
-			remoteObjects = append(remoteObjects, o)
+		for i := range jobs.Items {
+			remoteObjects = append(remoteObjects, &jobs.Items[i])
 		}
 
 		cronjobs, _ := clientset.BatchV2alpha1().CronJobs(ns).List(metav1.ListOptions{})
-		for _, cronjob := range cronjobs.Items {
-			o := runtime.Object(&cronjob)
-			remoteObjects = append(remoteObjects, o)
+		for i := range cronjobs.Items {
+			remoteObjects = append(remoteObjects, &cronjobs.Items[i])
 		}
 	}
 
