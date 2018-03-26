@@ -15,6 +15,12 @@ Download the [latest stable release](https://github.com/better/kubechange/releas
 ## Usage
 
 ```bash
+Usage: kubechange -l <label> <file> ...
+kubechange helps keep local and remote Kubernetes state up-to-date
+
+-l string	Label to use as a filter
+-e string	Update cluster objects
+
 # Passing files as arguments
 kubechange -l common-label -e manifest-foo.yml manifest-bar.yml
 

@@ -131,6 +131,14 @@ func filterObjectsByLabel(objects []runtime.Object, label string) []runtime.Obje
 }
 
 func main() {
+	//todo: exit status, write to stderr, embed version and build
+	flag.Usage = func() {
+		fmt.Println("Usage: kubechange -l <label> <file> ...")
+		fmt.Printf("kubechange helps keep local and remote Kubernetes state up-to-date\n\n")
+		fmt.Println("-l string\tLabel to use as a filter")
+		fmt.Println("-e string\tUpdate cluster objects")
+	}
+
 	label := flag.String("l", "", "Label to use as filter")
 	execute := flag.Bool("e", false, "Update cluster objects")
 
