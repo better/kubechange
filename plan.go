@@ -18,9 +18,9 @@ import (
 func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Object, criteria PairCriteria) []ObjectPair {
 	pairs := make([]ObjectPair, 0, len(srcObjects))
 
-	for _, src := range srcObjects {
-		srcMetadata, srcLabels := getObjectMetadata(src)
-		pair := ObjectPair{&src, nil}
+	for i := range srcObjects {
+		srcMetadata, srcLabels := getObjectMetadata(srcObjects[i])
+		pair := ObjectPair{&srcObjects[i], nil}
 
 		for _, dst := range dstObjects {
 			dstMetadata, dstLabels := getObjectMetadata(dst)
