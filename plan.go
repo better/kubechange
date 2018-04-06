@@ -22,16 +22,15 @@ func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Obj
 		srcMetadata, srcLabels := getObjectMetadata(srcObjects[i])
 		pair := ObjectPair{&srcObjects[i], nil}
 
-		for _, dst := range dstObjects {
-			dstMetadata, dstLabels := getObjectMetadata(dst)
+		for j := range dstObjects {
+			dstMetadata, dstLabels := getObjectMetadata(dstObjects[j])
 
 			if criteria.label != "" &&
 				srcLabels.Get(criteria.label) == dstLabels.Get(criteria.label) &&
 				srcMetadata.GetNamespace() == dstMetadata.GetNamespace() {
-				pair.dst = &dst
+				pair.dst = &dstObjects[j]
 			}
 		}
-
 		pairs = append(pairs, pair)
 	}
 

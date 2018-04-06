@@ -73,7 +73,8 @@ func parseManifests(file string) ([]runtime.Object, error) {
 		if len(m) == 0 {
 			continue
 		}
-		obj, _, err := scheme.Codecs.UniversalDeserializer().Decode([]byte(file), nil, nil)
+
+		obj, _, err := scheme.Codecs.UniversalDeserializer().Decode([]byte(m), nil, nil)
 
 		if err != nil {
 			return nil, err
@@ -184,8 +185,8 @@ func main() {
 	files := readFiles(filenames)
 	localObjects := make([]runtime.Object, 0, 1)
 
-	for _, file := range files {
-		o, err := parseManifests(file)
+	for i := range files {
+		o, err := parseManifests(files[i])
 		if err != nil {
 			panic(err)
 		}
