@@ -34,7 +34,24 @@ func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Obj
 		pairs = append(pairs, pair)
 	}
 
-	//todo: iterate over dstObjects
+	for i := range dstObjects {
+		dstMetadata, dstLabels := getObjectMetadata(dstObjects[i])
+		pair := ObjectPair{nil, &dstObjects[i]}
+
+		for j := range srcObjects {
+			srcMetadata, srcLabels := getObjectMetadata(srcObjects[j])
+
+			if criteria.label != "" &&
+				srcLabels.Get(criteria.label) == dstLabels.Get(criteria.label) &&
+				srcMetadata.GetNamespace() == dstMetadata.GetNamespace() {
+				pair.src = &srcObjects[j]
+			}
+		}
+
+		if pair.src == nil {
+			pairs = append(pairs, pair)
+		}
+	}
 
 	return pairs
 }
@@ -141,6 +158,43 @@ func executePlan(plan []Step, config PlanConfig) {
 				}
 			default:
 				_ = srcType
+			}
+		} else if step.action == "delete" {
+			dst := *step.pair.dst
+			dstMetadata, _ := getObjectMetadata(dst)
+			propagationPolicy := metav1.DeletePropagationForeground
+
+			switch dstType := dst.(type) {
+			case *batchv1.Job:
+				fmt.Println(`Deleting Job "` + dstMetadata.GetName() + `"`)
+
+				if !execute {
+					break
+				}
+
+				err := clientset.BatchV1().Jobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+
+				if err != nil {
+					panic(err)
+				}
+
+				waitForObjectDeletion(dst, clientset)
+			case *batchv2alpha1.CronJob:
+				fmt.Println(`Deleting CronJob "` + dstMetadata.GetName() + `"`)
+
+				if !execute {
+					break
+				}
+
+				err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+
+				if err != nil {
+					panic(err)
+				}
+
+				waitForObjectDeletion(dst, clientset)
+			default:
+				_ = dstType
 			}
 		} else if step.action == "update" {
 			src := *step.pair.src
