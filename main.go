@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apilabels "k8s.io/apimachinery/pkg/labels"
@@ -16,8 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
-	batchv2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -90,7 +90,7 @@ func getObjectGroupVersionKind(object runtime.Object) schema.GroupVersionKind {
 	switch t := object.(type) {
 	case *batchv1.Job:
 		return schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}
-	case *batchv2alpha1.CronJob:
+	case *batchv1beta1.CronJob:
 		return schema.GroupVersionKind{Group: "batch", Version: "v2alpha1", Kind: "CronJob"}
 	default:
 		_ = t
@@ -211,7 +211,7 @@ func main() {
 			remoteObjects = append(remoteObjects, &jobs.Items[i])
 		}
 
-		cronjobs, _ := clientset.BatchV2alpha1().CronJobs(ns).List(metav1.ListOptions{})
+		cronjobs, _ := clientset.BatchV1beta1().CronJobs(ns).List(metav1.ListOptions{})
 		for i := range cronjobs.Items {
 			remoteObjects = append(remoteObjects, &cronjobs.Items[i])
 		}

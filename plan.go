@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
-	batchv2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
 )
 
 //todo: filter out Jobs that are children of CronJobs
@@ -81,9 +81,9 @@ func waitForObjectDeletion(object runtime.Object, clientset kubernetes.Interface
 		case *batchv1.Job:
 			metadata, _ := meta.Accessor(t)
 			_, err = clientset.BatchV1().Jobs(metadata.GetNamespace()).Get(metadata.GetName(), metav1.GetOptions{})
-		case *batchv2alpha1.CronJob:
+		case *batchv1beta1.CronJob:
 			metadata, _ := meta.Accessor(t)
-			_, err = clientset.BatchV2alpha1().CronJobs(metadata.GetNamespace()).Get(metadata.GetName(), metav1.GetOptions{})
+			_, err = clientset.BatchV1beta1().CronJobs(metadata.GetNamespace()).Get(metadata.GetName(), metav1.GetOptions{})
 		}
 
 		if err == nil {
@@ -131,14 +131,14 @@ func executePlan(plan []Step, config PlanConfig) {
 			src := *step.pair.src
 			srcMetadata, _ := getObjectMetadata(src)
 			switch srcType := src.(type) {
-			case *batchv2alpha1.CronJob:
+			case *batchv1beta1.CronJob:
 				fmt.Println(`Creating CronJob "` + srcMetadata.GetName() + `"`)
 
 				if !execute {
 					break
 				}
 
-				_, err := clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Create(src.(*batchv2alpha1.CronJob))
+				_, err := clientset.BatchV1beta1().CronJobs(srcMetadata.GetNamespace()).Create(src.(*batchv1beta1.CronJob))
 
 				if err != nil {
 					panic(err)
@@ -179,14 +179,14 @@ func executePlan(plan []Step, config PlanConfig) {
 				}
 
 				waitForObjectDeletion(dst, clientset)
-			case *batchv2alpha1.CronJob:
+			case *batchv1beta1.CronJob:
 				fmt.Println(`Deleting CronJob "` + dstMetadata.GetName() + `"`)
 
 				if !execute {
 					break
 				}
 
-				err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+				err := clientset.BatchV1beta1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 
 				if err != nil {
 					panic(err)
@@ -235,7 +235,7 @@ func executePlan(plan []Step, config PlanConfig) {
 					}
 
 					//todo: delete current CronJob child Jobs
-					err := clientset.BatchV2alpha1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+					err := clientset.BatchV1beta1().CronJobs(dstMetadata.GetNamespace()).Delete(dstMetadata.GetName(), &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 					if err != nil {
 						panic(err)
 					}
@@ -248,7 +248,7 @@ func executePlan(plan []Step, config PlanConfig) {
 						panic(err)
 					}
 				}
-			case *batchv2alpha1.CronJob:
+			case *batchv1beta1.CronJob:
 				dstGVK := getObjectGroupVersionKind(dst)
 
 				if dstGVK.Kind == "Job" {
@@ -266,7 +266,7 @@ func executePlan(plan []Step, config PlanConfig) {
 
 					waitForObjectDeletion(dst, clientset)
 
-					_, err = clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Create(src.(*batchv2alpha1.CronJob))
+					_, err = clientset.BatchV1beta1().CronJobs(srcMetadata.GetNamespace()).Create(src.(*batchv1beta1.CronJob))
 
 					if err != nil {
 						panic(err)
@@ -277,7 +277,7 @@ func executePlan(plan []Step, config PlanConfig) {
 					if !execute {
 						break
 					}
-					_, err := clientset.BatchV2alpha1().CronJobs(srcMetadata.GetNamespace()).Update(src.(*batchv2alpha1.CronJob))
+					_, err := clientset.BatchV1beta1().CronJobs(srcMetadata.GetNamespace()).Update(src.(*batchv1beta1.CronJob))
 
 					if err != nil {
 						panic(err)

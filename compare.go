@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"strings"
 
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	v1 "k8s.io/client-go/pkg/api/v1"
-	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
-	batchv2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
 )
 
 //todo: get field names from json tags
@@ -27,15 +27,15 @@ func deepCompareObject(src runtime.Object, dst runtime.Object) []string {
 	case *batchv1.Job:
 		dstJob := dst.(*batchv1.Job)
 		return deepCompareJobSpec(srcType.Spec, dstJob.Spec)
-	case *batchv2alpha1.CronJob:
-		dstCronJob := dst.(*batchv2alpha1.CronJob)
+	case *batchv1beta1.CronJob:
+		dstCronJob := dst.(*batchv1beta1.CronJob)
 		return deepCompareCronJobSpec(srcType.Spec, dstCronJob.Spec)
 	}
 
 	return fields
 }
 
-func deepCompareCronJobSpec(src batchv2alpha1.CronJobSpec, dst batchv2alpha1.CronJobSpec) []string {
+func deepCompareCronJobSpec(src batchv1beta1.CronJobSpec, dst batchv1beta1.CronJobSpec) []string {
 	var fields []string
 
 	if src.Schedule != dst.Schedule {
@@ -75,7 +75,7 @@ func deepCompareCronJobSpec(src batchv2alpha1.CronJobSpec, dst batchv2alpha1.Cro
 	return fields
 }
 
-func deepCompareJobTemplateSpec(src batchv2alpha1.JobTemplateSpec, dst batchv2alpha1.JobTemplateSpec) []string {
+func deepCompareJobTemplateSpec(src batchv1beta1.JobTemplateSpec, dst batchv1beta1.JobTemplateSpec) []string {
 	var fields []string
 
 	fields = append(fields, deepCompareJobSpec(src.Spec, dst.Spec)...)
