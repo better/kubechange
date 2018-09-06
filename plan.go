@@ -208,7 +208,7 @@ func executePlan(plan []Step, config PlanConfig) {
 				dstGVK := getObjectGroupVersionKind(dst)
 
 				if dstGVK.Kind == "Job" {
-					fmt.Println(`Replacing Job "` + dstMetadata.GetName() + `" with Job "` + srcMetadata.GetName() + `"`)
+					fmt.Println(`Replacing Job "` + dstMetadata.GetName() + `" with Job "` + srcMetadata.GetName() + `" in ` + dstMetadata.GetNamespace() + ` namespace`)
 
 					if !execute {
 						break
@@ -228,7 +228,7 @@ func executePlan(plan []Step, config PlanConfig) {
 						panic(err)
 					}
 				} else if dstGVK.Kind == "CronJob" {
-					fmt.Println(`Replacing CronJob "` + dstMetadata.GetName() + `" with Job "` + srcMetadata.GetName() + `"`)
+					fmt.Println(`Replacing CronJob "` + dstMetadata.GetName() + `" with Job "` + srcMetadata.GetName() + `" in ` + dstMetadata.GetNamespace() + ` namespace`)
 
 					if !execute {
 						break
@@ -252,7 +252,7 @@ func executePlan(plan []Step, config PlanConfig) {
 				dstGVK := getObjectGroupVersionKind(dst)
 
 				if dstGVK.Kind == "Job" {
-					fmt.Println(`Replacing Job "` + dstMetadata.GetName() + `" with CronJob "` + srcMetadata.GetName() + `"`)
+					fmt.Println(`Replacing Job "` + dstMetadata.GetName() + `" with CronJob "` + srcMetadata.GetName() + `" in ` + dstMetadata.GetNamespace() + ` namespace`)
 
 					if !execute {
 						break
@@ -272,7 +272,7 @@ func executePlan(plan []Step, config PlanConfig) {
 						panic(err)
 					}
 				} else if dstGVK.Kind == "CronJob" {
-					fmt.Println(`Replacing CronJob "` + dstMetadata.GetName() + `" with CronJob "` + srcMetadata.GetName() + `"`)
+					fmt.Println(`Replacing CronJob "` + dstMetadata.GetName() + `" with CronJob "` + srcMetadata.GetName() + `" in ` + dstMetadata.GetNamespace() + ` namespace`)
 
 					if !execute {
 						break
