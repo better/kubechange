@@ -1,28 +1,29 @@
 package main
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
-	v1 "k8s.io/client-go/pkg/api/v1"
-	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
-	batchv2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
 	"testing"
+
+	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 )
 
-func getExampleCronJobs() (batchv2alpha1.CronJob, batchv2alpha1.CronJob) {
+func getExampleCronJobs() (batchv1beta1.CronJob, batchv1beta1.CronJob) {
 	var fooSuccessfulJobsHistoryLimit int32 = 1
 	var fooSuspend bool = true
 	var fooActiveDeadlineSeconds int64 = 90
 	var barSuccessfulJobsHistoryLimit int32 = 2
 	var barFailedJobsHistoryLimit int32 = 3
 
-	cronJobFoo := batchv2alpha1.CronJob{
-		Spec: batchv2alpha1.CronJobSpec{
+	cronJobFoo := batchv1beta1.CronJob{
+		Spec: batchv1beta1.CronJobSpec{
 			Schedule:                   "* * * * *",
 			Suspend:                    &fooSuspend,
 			SuccessfulJobsHistoryLimit: &fooSuccessfulJobsHistoryLimit,
-			JobTemplate: batchv2alpha1.JobTemplateSpec{
+			JobTemplate: batchv1beta1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					ActiveDeadlineSeconds: &fooActiveDeadlineSeconds,
 					Template: v1.PodTemplateSpec{
@@ -44,12 +45,12 @@ func getExampleCronJobs() (batchv2alpha1.CronJob, batchv2alpha1.CronJob) {
 		},
 	}
 
-	cronJobBar := batchv2alpha1.CronJob{
-		Spec: batchv2alpha1.CronJobSpec{
+	cronJobBar := batchv1beta1.CronJob{
+		Spec: batchv1beta1.CronJobSpec{
 			Schedule:                   "1 * * * *",
 			SuccessfulJobsHistoryLimit: &barSuccessfulJobsHistoryLimit,
 			FailedJobsHistoryLimit:     &barFailedJobsHistoryLimit,
-			JobTemplate: batchv2alpha1.JobTemplateSpec{
+			JobTemplate: batchv1beta1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
 					Template: v1.PodTemplateSpec{
 						Spec: v1.PodSpec{
