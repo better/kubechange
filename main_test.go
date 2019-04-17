@@ -99,6 +99,25 @@ func TestParsing(t *testing.T) {
 	}
 }
 
+func TestFiltering(t *testing.T) {
+	files := readFiles([]string{"example-test-job.yml"})
+
+	for _, file := range files {
+		objects, _ := parseManifests(file)
+		filteredByNamespace := filterObjectsByNamespace(objects, "foo")
+
+		if len(filteredByNamespace) != 0 {
+			t.Errorf("Expected no objects")
+		}
+
+		filteredByNamespace = filterObjectsByNamespace(objects, "default")
+
+		if len(filteredByNamespace) != 1 {
+			t.Errorf("Expected 1 object")
+		}
+	}
+}
+
 func TestCompare(t *testing.T) {
 	fields := compareNodeSelector(map[string]string{
 		"group": "prod",

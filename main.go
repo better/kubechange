@@ -131,16 +131,34 @@ func filterObjectsByLabel(objects []runtime.Object, label string) []runtime.Obje
 	return filteredObjects
 }
 
+func filterObjectsByNamespace(objects []runtime.Object, namespace string) []runtime.Object {
+	if namespace == "" {
+		return objects
+	}
+
+	filteredObjects := make([]runtime.Object, 0, 1)
+	for _, o := range objects {
+		metadata, _ := getObjectMetadata(o)
+		if metadata.GetNamespace() == namespace {
+			filteredObjects = append(filteredObjects, o)
+		}
+	}
+
+	return filteredObjects
+}
+
 func main() {
 	//todo: exit status, write to stderr, embed version and build
 	flag.Usage = func() {
 		fmt.Println("Usage: kubechange -l <label> <file> ...")
 		fmt.Printf("kubechange helps keep local and remote Kubernetes state up-to-date\n\n")
 		fmt.Println("-l string\tLabel to use as a filter")
+		fmt.Println("-n string\tNamespace of compared resources")
 		fmt.Println("-e string\tUpdate cluster objects")
 	}
 
 	label := flag.String("l", "", "Label to use as filter")
+	namespace := flag.String("n", "", "Namespace of compared resources")
 	execute := flag.Bool("e", false, "Update cluster objects")
 
 	homedir := os.Getenv("HOME")
@@ -199,7 +217,7 @@ func main() {
 		panic(err)
 	}
 
-	srcObjects := filterObjectsByLabel(localObjects, *label)
+	srcObjects := filterObjectsByLabel(filterObjectsByNamespace(localObjects, *namespace), *label)
 	//todo: consider all namespaces
 	namespaces := getObjectNamespaces(srcObjects)
 
@@ -217,7 +235,7 @@ func main() {
 		}
 	}
 
-	dstObjects := filterObjectsByLabel(remoteObjects, *label)
+	dstObjects := filterObjectsByLabel(filterObjectsByNamespace(remoteObjects, *namespace), *label)
 
 	pairs := pairObjectsByCriteria(srcObjects, dstObjects, PairCriteria{*label})
 
