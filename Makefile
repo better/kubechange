@@ -4,7 +4,7 @@ all: quality test build
 
 quality:
 	gofmt -w *.go
-	go tool vet *.go
+	go vet *.go
 
 test:
 	go test -coverprofile=coverage
