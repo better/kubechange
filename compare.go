@@ -46,11 +46,18 @@ func deepCompareCronJobSpec(src batchv1beta1.CronJobSpec, dst batchv1beta1.CronJ
 		fields = append(fields, "concurrencyPolicy")
 	}
 
-	if src.Suspend != nil {
-		if dst.Suspend == nil || *src.Suspend != *dst.Suspend {
-			fields = append(fields, "suspend")
-		}
-	} else if dst.Suspend != nil {
+	// Handle default values for spec.suspend - defaults to 'false' if omitted from a manifest
+	var srcSuspend = src.Suspend
+	var destSuspend = dst.Suspend
+
+	if srcSuspend == nil {
+		srcSuspend = new(bool)
+	}
+	if destSuspend == nil {
+		destSuspend = new(bool)
+	}
+
+	if *srcSuspend != *destSuspend {
 		fields = append(fields, "suspend")
 	}
 

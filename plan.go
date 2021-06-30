@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -13,6 +14,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
+
+func PrettyPrint(v interface{}) (err error) {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err == nil {
+		fmt.Println(string(b))
+	}
+	return
+}
 
 //todo: filter out Jobs that are children of CronJobs
 func pairObjectsByCriteria(srcObjects []runtime.Object, dstObjects []runtime.Object, criteria PairCriteria) []ObjectPair {
@@ -109,6 +118,8 @@ func generatePlan(pairs []ObjectPair) []Step {
 		} else if pair.dst != nil {
 			pairDiffFields := deepCompareObject(*pair.src, *pair.dst)
 			if len(pairDiffFields) > 0 {
+				fmt.Print("Found differences between src and dest in the following fields:\n")
+				fmt.Print(PrettyPrint(pairDiffFields))
 				action = "update"
 			}
 		}
